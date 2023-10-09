@@ -1,7 +1,5 @@
 # Multiple Semantic Relationships-Aware Transformer for Heterogeneous Graph Embedding (MSHGT)
 
-The camera-ready paper for AAAI 23 can be found at: [http://arxiv.org/abs/2207.02547](http://arxiv.org/abs/2207.02547)
-
 ## Requirements
 
 #### 1. Neural network libraries for GNNs
