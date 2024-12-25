@@ -1,5 +1,5 @@
 ## :book: Graph Transformer-based Heterogeneous Graph Neural Networks Enhanced by Multiple Meta-path Adjacency Matrices Decomposition
-<image src="demo.png" width="100%">
+<image src="demo.jpg" width="100%">
 
 # Introduction
 This is a release of the code of our paper **_Graph Transformer-based Heterogeneous Graph Neural Networks Enhanced by Multiple Meta-path Adjacency Matrices Decomposition_**.
