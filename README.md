@@ -26,6 +26,11 @@ pip install torch-geometric
 
 # Prepare the data
 You can use download IMDB, DBLP, LastFM by using dataset class in torch_geometric.datasets. For Pubmed, ACM and Yelp, please them from [the source of HGB benchmark] (https://cloud.tsinghua.edu.cn/d/fc10cb35d19047a88cb1/?p=NC)
+```bash
+# Pubmed and Yelp datasets need to be preprocessed in advance to meet the needs of the model.
+python pubmed_precess.py
+python yelp_precess.py
+```
 
 # Run Code
 Before running the main file, you can modify some of the experimental settings to suit your needs.
