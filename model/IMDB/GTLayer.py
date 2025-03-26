@@ -6,74 +6,74 @@ import torch.nn.functional as F
 import math
 
 
-class Attention_layer(nn.Module):
-    def __init__(self, in_dim, hid_dim, num_edge_types, heads=1):
+class Single_Attention_layer(nn.Module):
+    def __init__(self, config):
         super().__init__()
-        self.in_dim = in_dim
-        self.hid_dim = hid_dim
-        self.heads = heads
-        self.use_self_seg = True
+        self.svd_dim = config.svd_dim
+        self.hid_dim = config.hidden_dim
+        self.heads = config.num_heads
+        self.num_metapaths = config.num_metapaths
+        self.dropout = config.dropout
+        self.bias = config.bias
 
-        self.WQ = nn.Parameter(torch.Tensor(heads, (1 + num_edge_types) * hid_dim, hid_dim // heads),
-                               requires_grad=True)
-        self.WK = nn.Parameter(torch.Tensor(heads, (1 + num_edge_types) * hid_dim, hid_dim // heads),
-                               requires_grad=True)
-        self.WV = nn.Parameter(torch.Tensor(heads, in_dim, hid_dim // heads), requires_grad=True)
+        self.Q_lin = nn.Linear(in_features=self.num_metapaths * self.svd_dim + self.hid_dim,
+                               out_features=self.hid_dim // self.heads, bias=self.bias)
+        self.K_lin = nn.Linear(in_features=self.num_metapaths * self.svd_dim + self.hid_dim,
+                               out_features=self.hid_dim // self.heads, bias=self.bias)
+        self.V_lin = nn.Linear(in_features=self.hid_dim, out_features=self.hid_dim // self.heads,
+                               bias=self.bias)
 
-        self.Q_bias = nn.Parameter(torch.zeros((heads, 1, hid_dim // heads)))
-        self.K_bias = nn.Parameter(torch.zeros((heads, 1, hid_dim // heads)))
-        self.V_bias = nn.Parameter(torch.zeros((heads, 1, hid_dim // heads)))
-        self.lin = nn.Linear(in_features=hid_dim, out_features=hid_dim)
-        self.reset_parameters()
 
     def forward(self, input_x, pe_Q, pe_K):
-        x_Q = torch.cat([input_x, pe_Q], dim=-1)
-        x_K = torch.cat([input_x, pe_K], dim=-1)
-        Q = x_Q @ self.WQ + self.Q_bias
-        K = x_K @ self.WK + self.K_bias
-        V = input_x @ self.WV + self.V_bias
-        KT = torch.transpose(K, 2, 1)
-        QKT = Q @ KT
-        attn = F.softmax(QKT / math.sqrt(self.hid_dim), dim=-1)
-        attn_x = attn @ V
-        list_attn_x = [x for x in attn_x]
-        x_cat = torch.cat(list_attn_x, dim=1)
-        return self.lin(x_cat)
+        x_Q = torch.concat((input_x, pe_Q), dim=-1)
+        x_K = torch.concat((input_x, pe_K), dim=-1)
 
-    def reset_parameters(self):
-        glorot(self.WK)
-        glorot(self.WQ)
-        glorot(self.WV)
+        Q = self.Q_lin(x_Q)  # (N,dh)
+        K = self.K_lin(x_K)  # (N,dh)
+        V = self.V_lin(input_x)  # (N,dh)
+        QKT = Q @ K.t()
+        QKT = F.dropout(QKT, p=self.dropout, training=self.training)
+        attn = F.softmax(QKT / math.sqrt(self.hid_dim // self.heads), dim=-1)
+        out = attn @ V
+        return out
 
 
 class GraphTransformerLayer(nn.Module):
-    def __init__(self, in_dim, hid_dim, num_edge_types, heads, dropout):
+    def __init__(self, config):
         super().__init__()
-        self.in_dim = in_dim
-        self.hid_dim = hid_dim
-        self.heads = heads
-        self.dropout = dropout
+        self.hid_dim = config.hidden_dim
+        self.heads = config.num_heads
+        self.dropout = config.dropout
 
-        self.attn = Attention_layer(in_dim=in_dim, hid_dim=hid_dim, num_edge_types=num_edge_types, heads=heads)
-        # self.norm1 = nn.LayerNorm(hid_dim)
-        self.norm1 = nn.BatchNorm1d(hid_dim)
-        self.fnn_1 = nn.Linear(in_features=hid_dim, out_features=hid_dim)
-        # self.norm2 = nn.LayerNorm(hid_dim)
-        self.norm2 = nn.BatchNorm1d(hid_dim)
-        self.fnn_2 = nn.Linear(in_features=hid_dim, out_features=hid_dim)
+        self.attn_layers_list = nn.Sequential(*[Single_Attention_layer(config) for _ in range(self.heads)])
+
+        self.cat_heads_out = nn.Linear(in_features=self.hid_dim, out_features=self.hid_dim)
+
+
+        self.norm1 = nn.BatchNorm1d(self.hid_dim)
+        self.fnn_1 = nn.Linear(in_features=self.hid_dim, out_features=self.hid_dim)
+
+        self.norm2 = nn.BatchNorm1d(self.hid_dim)
+        self.fnn_2 = nn.Linear(in_features=self.hid_dim, out_features=self.hid_dim)
 
     def forward(self, x, pe_Q, pe_K, deg):
-        attn_x = self.attn(x, pe_Q, pe_K)
+        head_outs_list = []
+        for i, blocks in enumerate(self.attn_layers_list):
+            head_outs_list.append(blocks(x, pe_Q, pe_K))
+        head_outs_list = torch.stack(head_outs_list, dim=0)
+        head_outs = head_outs_list.transpose(0, 1).reshape(-1, self.hid_dim).contiguous()
+        attn_x = self.cat_heads_out(head_outs)
+        attn_x = F.relu(attn_x)
+
         x_1 = x + attn_x / torch.sqrt(deg).reshape(-1, 1)
         x_1 = self.norm1(x_1)
-        x_1_save = x_1
         # FNN
         x_2 = self.fnn_1(x_1)
-        x_2 = F.relu(x_2)
-        x_2 = F.dropout(x_2, p=self.dropout, training=self.training)
+        # x_2 = F.relu(x_2)
+        # x_2 = F.dropout(x_2, p=self.dropout, training=self.training)
         x_2 = self.fnn_2(x_2)
 
-        x_2 = x_1_save + x_2
+        x_2 = x_1 + x_2
         out = self.norm2(x_2)
 
         return out
