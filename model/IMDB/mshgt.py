@@ -31,68 +31,60 @@ class GAT(torch.nn.Module):
 
 
 class GraphTransformer(nn.Module):
-    def __init__(self, in_dim, hid_dim, num_edge_types, heads, num_layers, dropout):
+    def __init__(self, config):
         super().__init__()
-        self.in_dim = in_dim
-        self.hid_dim = hid_dim
-        self.heads = heads
-        self.num_layers = num_layers
-        self.dropout = dropout
-        self.trans = nn.Sequential(nn.Linear(in_features=in_dim, out_features=2 * hid_dim), nn.ReLU(),
-                                   nn.Linear(in_features=2 * hid_dim, out_features=hid_dim))
+        self.hid_dim = config.hidden_dim
+        self.heads = config.num_heads
+        self.num_layers = config.num_blocks
+        self.dropout = config.dropout
 
-        self.transformer_blocks = nn.Sequential()
+        self.transformer_blocks = nn.Sequential(*[GraphTransformerLayer(config=config) for _ in range(self.num_layers)])
 
-        for i in range(num_layers):  # Add transformer layers
-            self.transformer_blocks.add_module('block' + str(i + 1),
-                                               GraphTransformerLayer(in_dim=hid_dim, hid_dim=hid_dim,
-                                                                     num_edge_types=num_edge_types, heads=heads,
-                                                                     dropout=dropout))
-        self.lin_cat = nn.Linear(in_features=(num_layers + 1) * hid_dim, out_features=hid_dim)
+        self.lin_cat = nn.Linear(in_features=(self.num_layers + 1) * self.hid_dim, out_features=self.hid_dim)
 
     def forward(self, x, pe_Q, pe_K, deg):
-        output_list = [x]
-
+        save_x = []
+        save_x.append(x)
         for i, blk in enumerate(self.transformer_blocks):
-            gtl_in = output_list[-1]
+            gtl_in = save_x[-1]
             gtl_out = blk(gtl_in, pe_Q, pe_K, deg)
-            output_list.append(gtl_out)
+            save_x.append(gtl_out)
+        save_x=torch.stack(save_x,dim=0)
+        save_x = save_x.transpose(0, 1).reshape(x.shape[0], -1)
+        out_x = F.relu(self.lin_cat(save_x))
 
-        concat_layer_output = F.dropout(torch.cat(output_list, dim=-1), p=self.dropout)
-        output_x = F.relu(self.lin_cat(concat_layer_output))
-
-        return output_x
-
+        return out_x
 
 class MSHGTModel(nn.Module):
-    def __init__(self, num_nodes, in_dim, hidden_dim, out_dim, num_edge_types, heads,
-                 num_layers_gnn, num_layers_gt, dropout, metadata):
+    def __init__(self, config, metadata):
         super(MSHGTModel, self).__init__()
-        self.num_nodes = num_nodes
-        self.in_dim = in_dim
-        self.hidden_dim = hidden_dim
-        self.out_dim = out_dim
-        self.num_edge_types = num_edge_types
-        self.heads = heads
-        self.dropout = dropout
+        self.num_nodes = config.num_nodes
+        self.in_dim = config.x_input_dim
+        self.hidden_dim = config.hidden_dim
+        self.svd_dim = config.svd_dim
+        self.out_dim = config.classes
+        self.num_edge_types = config.num_metapaths
+        self.heads = config.num_heads
+        self.dropout = config.dropout
+        self.num_layers_gnn = config.num_gnns
 
-        self.trans_1 = nn.Sequential(nn.Linear(in_features=in_dim, out_features=hidden_dim), nn.ReLU())
-        self.trans_2 = nn.Sequential(nn.Linear(in_features=in_dim, out_features=hidden_dim), nn.ReLU())
-        self.trans_3 = nn.Sequential(nn.Linear(in_features=in_dim, out_features=hidden_dim), nn.ReLU())
-        self.hgnn = to_hetero(GAT(hidden_channels=hidden_dim, out_channels=hidden_dim, num_layers=num_layers_gnn,
-                                  heads=heads), metadata=metadata, aggr='sum')
-        self.get_pe = get_all_pe(num_nodes=num_nodes, input_dim=in_dim, hidden_dim=hidden_dim,
-                                 num_edge_types=num_edge_types)
-        self.net = GraphTransformer(in_dim=hidden_dim, hid_dim=hidden_dim, num_edge_types=num_edge_types, heads=heads,
-                                    num_layers=num_layers_gt, dropout=dropout)
-        self.mlp = nn.Sequential(nn.Linear(in_features=hidden_dim, out_features=2 * hidden_dim), nn.ReLU(),
-                                 nn.Linear(in_features=2 * hidden_dim, out_features=out_dim))
+        self.trans_1 = nn.Sequential(nn.Linear(in_features=self.in_dim, out_features=self.hidden_dim), nn.ReLU())
+        self.trans_2 = nn.Sequential(nn.Linear(in_features=self.in_dim, out_features=self.hidden_dim), nn.ReLU())
+        self.trans_3 = nn.Sequential(nn.Linear(in_features=self.in_dim, out_features=self.hidden_dim), nn.ReLU())
+        self.hgnn = to_hetero(GAT(hidden_channels=self.hidden_dim, out_channels=self.hidden_dim, num_layers=self.
+                                  num_layers_gnn, heads=self.heads), metadata=metadata, aggr='sum')
+        self.get_pe = get_all_pe(num_nodes=self.num_nodes, hidden_dim=self.svd_dim,
+                                 num_edge_types=self.num_edge_types)
+        self.net = GraphTransformer(config=config)
+        self.mlp = nn.Sequential(nn.Linear(in_features=self.hidden_dim, out_features=2 * self.hidden_dim), nn.ReLU(),
+                                 nn.Linear(in_features=2 * self.hidden_dim, out_features=self.out_dim, bias=False))
+        self.alpha = nn.Parameter(torch.ones(1), requires_grad=True)
 
     def forward(self, data, original_A, deg):
         x_m = self.trans_1(data['movie']['x'])
         x_d = self.trans_2(data['director']['x'])
         x_a = self.trans_3(data['actor']['x'])
-        x_dict, edge_index_dict = data.x_dict, data.edge_index_dict
+        x_dict, edge_index_dict = data.x_dict, data.edge_index_dict  
         x_dict['movie'] = x_m
         x_dict['director'] = x_d
         x_dict['actor'] = x_a
@@ -102,4 +94,5 @@ class MSHGTModel(nn.Module):
         x_gt = self.net(x['movie'], pe_Q, pe_K, deg)
         x_gt = F.dropout(x_gt, p=self.dropout)
         out = self.mlp(x_gt)
-        return loss_pe, F.softmax(out, dim=-1), x_gt
+        out_logits = F.softmax(out, dim=-1)
+        return self.alpha * loss_pe, out_logits, x_gt, pe_Q, pe_K
