@@ -7,20 +7,33 @@ import torch.nn.functional as F
 class SVD(nn.Module):
     def __init__(self, N, hidden_dim):
         super(SVD, self).__init__()
+        self.n = N
         self.hidden_dim = hidden_dim
 
-        self.U = nn.Parameter(torch.rand(N, hidden_dim), requires_grad=True)
-        self.S = nn.Parameter(torch.tensor(np.ones(shape=hidden_dim), dtype=torch.float32), requires_grad=True)
-        self.V = nn.Parameter(torch.rand(hidden_dim, N), requires_grad=True)
+        self.U = nn.Parameter(torch.randn(N, hidden_dim), requires_grad=True)
+        self.S = nn.Parameter(torch.ones(self.hidden_dim, dtype=torch.float32), requires_grad=True)
+        self.V = nn.Parameter(torch.randn(hidden_dim, N), requires_grad=True)
+
+        # self.U = nn.Embedding(num_embeddings=self.n, embedding_dim=self.hidden_dim)
+        # self.S = nn.Parameter(torch.ones(self.hidden_dim), requires_grad=True)
+        # self.V = nn.Embedding(num_embeddings=self.hidden_dim, embedding_dim=self.n)
+
+        self.init_weight()
+
+        self.register_buffer("Identity_matrix", torch.eye(n=self.hidden_dim, requires_grad=False))
+
+    def init_weight(self):
+        torch.nn.init.normal_(self.U)
+        torch.nn.init.normal_(self.V)
 
     def forward(self, A):
         new_A = self.U @ torch.diag(self.S)
         new_A = (new_A @ self.V) / self.hidden_dim
 
         # The properties of the orthonormal matrix U,V are used as constraints
-        regular_U = 0.5 * torch.norm(self.U.t() @ self.U - torch.eye(n=self.hidden_dim), p=2)  
-        regular_V = 0.5 * torch.norm(self.V @ self.V.t() - torch.eye(n=self.hidden_dim), p=2)  
-        loss = nn.MSELoss()(A, new_A) + regular_U + regular_V
+        regular_U = 0.5 * torch.norm(self.U.t() @ self.U - self.Identity_matrix, p=2)  # 令U成为归一化的正交矩阵
+        regular_V = 0.5 * torch.norm(self.V @ self.V.t() - self.Identity_matrix, p=2)  # 令V成为归一化的正交矩阵
+        loss = (nn.MSELoss()(A, new_A)) / (self.n ** 2) + regular_U + regular_V
 
         U = self.U @ torch.sqrt(torch.diag(self.S))
         V = torch.sqrt(torch.diag(self.S)) @ self.V
@@ -30,10 +43,9 @@ class SVD(nn.Module):
 
 
 class get_all_pe(nn.Module):
-    def __init__(self, num_nodes, input_dim, hidden_dim, num_edge_types):
+    def __init__(self, num_nodes, hidden_dim, num_edge_types):
         super(get_all_pe, self).__init__()
         self.num_nodes = num_nodes
-        self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.num_edge_types = num_edge_types
 
@@ -42,14 +54,19 @@ class get_all_pe(nn.Module):
             self.svd_list.add_module(name=f'svd_{i}', module=SVD(N=num_nodes, hidden_dim=hidden_dim))
 
     def forward(self, original_A):
-        pe_Q_list = []
+        pe_Q_list = []  # 用列表收集可导的张量
         pe_K_list = []
         loss_svd = 0
+
         for k, block in enumerate(self.svd_list):
             loss, pe_Q, pe_K = block(original_A[k])
-            pe_Q_list.append(pe_Q)
+            pe_Q_list.append(pe_Q)  # 用列表收集可导的张量
             pe_K_list.append(pe_K)
             loss_svd += loss
-        all_pe_Q = torch.cat(pe_Q_list, dim=-1)
-        all_pe_K = torch.cat(pe_K_list, dim=-1)
+        pe_Q_list = torch.stack(pe_Q_list, dim=0)
+        pe_K_list = torch.stack(pe_K_list, dim=0)
+        # # 使用torch.stack保留梯度关系
+        all_pe_Q = pe_Q_list.transpose(0, 1).reshape(self.num_nodes, -1).contiguous()
+        all_pe_K = pe_K_list.transpose(0, 1).reshape(self.num_nodes, -1).contiguous()
         return loss_svd / self.num_edge_types, all_pe_Q, all_pe_K
+
