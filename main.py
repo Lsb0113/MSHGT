@@ -45,97 +45,7 @@ def load_args():
     return args
 
 
-# # 计算时间
-# def train(model, data, original_A, y, train_mask, deg, loss_fn, optimizer, x, edge_index):
-#     model.train()
-#     out, embs = model(data, original_A, deg, x, edge_index)
-#     loss_acc = loss_fn(out[train_mask], y[train_mask])
-#     l = loss_acc
-#     optimizer.zero_grad()
-#     l.backward()
-#     optimizer.step()
-#
-#     pred = out.argmax(dim=1)
-#     marco_f1 = f1_score(y_true=y[train_mask], y_pred=pred[train_mask], average='macro')
-#     mirco_f1 = f1_score(y_true=y[train_mask], y_pred=pred[train_mask], average='micro')
-#
-#     return l.cpu().detach().numpy(), marco_f1, mirco_f1
-#
-#
-# def validate(model, data, original_A, y, val_mask, deg, loss_fn, x, edge_index):
-#     model.eval()
-#     with torch.no_grad():
-#         out, embs = model(data, original_A, deg, x, edge_index)
-#         loss_acc = loss_fn(out[val_mask], y[val_mask])
-#         l = loss_acc
-#         pred = out.argmax(dim=1)
-#         marco_f1 = f1_score(y_true=y[val_mask], y_pred=pred[val_mask], average='macro')
-#         mirco_f1 = f1_score(y_true=y[val_mask], y_pred=pred[val_mask], average='micro')
-#     return l.cpu().detach().numpy(), marco_f1, mirco_f1
-#
-#
-# def test(model, data, original_A, y, test_mask, deg, x, edge_index):
-#     model.eval()
-#     with torch.no_grad():
-#         out, embs = model(data, original_A, deg, x, edge_index)
-#         pred = out.argmax(dim=1)
-#         marco_f1 = f1_score(y_true=y[test_mask], y_pred=pred[test_mask], average='macro')
-#         mirco_f1 = f1_score(y_true=y[test_mask], y_pred=pred[test_mask], average='micro')
-#     return marco_f1, mirco_f1, embs
 
-
-# 第四章的工作
-# def train(model, data, original_A, y, train_mask, deg, loss_fn, optimizer, x, edge_index):
-#     model.train()
-#     loss_pe, loss_dis, loss_logits, out, out_lgt, embs, embs_lgt = model(data, original_A, deg, x, edge_index)
-#     loss_acc = loss_fn(out[train_mask], y[train_mask])
-#     loss_stu_acc = loss_fn(out_lgt[train_mask], y[train_mask])
-#     l = loss_pe + loss_acc + loss_stu_acc + loss_dis + loss_logits
-#     optimizer.zero_grad()
-#     l.backward()
-#     optimizer.step()
-#
-#     pred = out.argmax(dim=1)
-#     marco_f1 = f1_score(y_true=y[train_mask], y_pred=pred[train_mask], average='macro')
-#     mirco_f1 = f1_score(y_true=y[train_mask], y_pred=pred[train_mask], average='micro')
-#
-#     pred_lgt = out_lgt.argmax(dim=1)
-#     marco_f1_lgt = f1_score(y_true=y[train_mask], y_pred=pred_lgt[train_mask], average='macro')
-#     mirco_f1_lgt = f1_score(y_true=y[train_mask], y_pred=pred_lgt[train_mask], average='micro')
-#
-#     return l.cpu().detach().numpy(), marco_f1, mirco_f1, marco_f1_lgt, mirco_f1_lgt
-#
-#
-# def validate(model, data, original_A, y, val_mask, deg, loss_fn, x, edge_index):
-#     model.eval()
-#     with torch.no_grad():
-#         loss_pe, loss_dis, loss_logits, out, out_lgt, embs, embs_lgt = model(data, original_A, deg, x, edge_index)
-#         loss_acc = loss_fn(out[val_mask], y[val_mask])
-#         loss_stu_acc = loss_fn(out_lgt[val_mask], y[val_mask])
-#         l = loss_pe + loss_acc + loss_stu_acc + loss_dis + loss_logits
-#         pred = out.argmax(dim=1)
-#         marco_f1 = f1_score(y_true=y[val_mask], y_pred=pred[val_mask], average='macro')
-#         mirco_f1 = f1_score(y_true=y[val_mask], y_pred=pred[val_mask], average='micro')
-#         pred_lgt = out_lgt.argmax(dim=1)
-#         marco_f1_lgt = f1_score(y_true=y[val_mask], y_pred=pred_lgt[val_mask], average='macro')
-#         mirco_f1_lgt = f1_score(y_true=y[val_mask], y_pred=pred_lgt[val_mask], average='micro')
-#     return l.cpu().detach().numpy(), marco_f1, mirco_f1, marco_f1_lgt, mirco_f1_lgt
-#
-#
-# def test(model, data, original_A, y, test_mask, deg, x, edge_index):
-#     model.eval()
-#     with torch.no_grad():
-#         loss_pe, loss_dis, loss_logits, out, out_lgt, embs, embs_lgt = model(data, original_A, deg, x, edge_index)
-#         pred = out.argmax(dim=1)
-#         marco_f1 = f1_score(y_true=y[test_mask], y_pred=pred[test_mask], average='macro')
-#         mirco_f1 = f1_score(y_true=y[test_mask], y_pred=pred[test_mask], average='micro')
-#         pred_lgt = out_lgt.argmax(dim=1)
-#         marco_f1_lgt = f1_score(y_true=y[test_mask], y_pred=pred_lgt[test_mask], average='macro')
-#         mirco_f1_lgt = f1_score(y_true=y[test_mask], y_pred=pred_lgt[test_mask], average='micro')
-#     return marco_f1, mirco_f1, embs, marco_f1_lgt, mirco_f1_lgt
-
-
-# 第三章的工作
 def train(model, data, original_A, y, train_mask, deg, loss_fn, optimizer):
     model.train()
     loss_pe, out, embs, _, _ = model(data, original_A, deg)
@@ -256,48 +166,21 @@ def main():
     Train_Loss = []
     Train_macro_f1 = []
     Train_micro_f1 = []
-    if args.use_pre_train_se:
-        Train_macro_f1_lgt = []
-        Train_micro_f1_lgt = []
     Val_Loss = []
     Val_macro_f1 = []
     Val_micro_f1 = []
-    if args.use_pre_train_se:
-        Val_macro_f1_lgt = []
-        Val_micro_f1_lgt = []
 
     patience = args.patience
     count = 0
     max_val_acc = 0
     best_macro_f1 = 0
     best_micro_f1 = 0
-    if args.use_pre_train_se:
-        max_val_acc_lgt = 0
-        best_macro_f1_lgt = 0
-        best_micro_f1_lgt = 0
 
-    # 计算时间
     sum_train_time = 0
     sum_val_time = 0
     for i in range(args.epochs):
         train_begin = time.time()
-        if args.use_pre_train_se:
-            # 计算时间
-            train_loss, train_macro_f1, train_micro_f1 = train(model, data, original_A, y,
-                                                               train_mask, deg,
-                                                               loss_fn,
-                                                               optimizer,
-                                                               homo_data.x,
-                                                               homo_data.edge_index)
-            # train_loss, train_macro_f1, train_micro_f1, train_macro_f1_lgt, train_micro_f1_lgt = train(model, data,
-            #                                                                                            original_A, y,
-            #                                                                                            train_mask, deg,
-            #                                                                                            loss_fn,
-            #                                                                                            optimizer,
-            #                                                                                            homo_data.x,
-            #                                                                                            homo_data.edge_index)
-        else:
-            train_loss, train_macro_f1, train_micro_f1 = train(model, data, original_A, y, train_mask, deg, loss_fn,
+        train_loss, train_macro_f1, train_micro_f1 = train(model, data, original_A, y, train_mask, deg, loss_fn,
                                                                optimizer)
         train_end = time.time()
         train_time = train_end - train_begin
@@ -305,138 +188,53 @@ def main():
         Train_Loss.append(train_loss)
         Train_macro_f1.append(train_macro_f1)
         Train_micro_f1.append(train_micro_f1)
-        # if args.use_pre_train_se:
-        #     Train_macro_f1_lgt.append(train_macro_f1_lgt)
-        #     Train_micro_f1_lgt.append(train_micro_f1_lgt)
+       
         val_begin = time.time()
-        if args.use_pre_train_se:
-            # 计算时间
-            val_loss, val_macro_f1, val_micro_f1 = validate(model, data, original_A,
-                                                            y,
-                                                            val_mask, deg, loss_fn,
-                                                            homo_data.x,
-                                                            homo_data.edge_index)
-            # val_loss, val_macro_f1, val_micro_f1, val_macro_f1_lgt, val_micro_f1_lgt = validate(model, data, original_A,
-            #                                                                                     y,
-            #                                                                                     val_mask, deg, loss_fn,
-            #                                                                                     homo_data.x,
-            #                                                                                     homo_data.edge_index)
-        else:
-            val_loss, val_macro_f1, val_micro_f1 = validate(model, data, original_A, y, val_mask, deg, loss_fn)
+        val_loss, val_macro_f1, val_micro_f1 = validate(model, data, original_A, y, val_mask, deg, loss_fn)
         val_end = time.time()
         val_time = val_end - val_begin
         sum_val_time += val_time
         Val_macro_f1.append(val_macro_f1)
         Val_micro_f1.append(val_micro_f1)
-        # if args.use_pre_train_se:
-        #     Val_macro_f1_lgt.append(val_macro_f1_lgt)
-        #     Val_micro_f1_lgt.append(val_micro_f1_lgt)
+        
         Val_Loss.append(val_loss)
-        if args.use_pre_train_se:
-            # 计算时间
-            test_macro_f1, test_micro_f1, _ = test(model, data, original_A, y,
-                                                   test_mask, deg, homo_data.x,
-                                                   homo_data.edge_index)
-            # test_macro_f1, test_micro_f1, _, test_macro_f1_lgt, test_micro_f1_lgt = test(model, data, original_A, y,
-            #                                                                              test_mask, deg, homo_data.x,
-            #                                                                              homo_data.edge_index)
-        else:
-            test_macro_f1, test_micro_f1, _ = test(model, data, original_A, y, test_mask, deg)
-        if args.use_pre_train_se:
-            if i % 10 == 0:
-                # 计算时间
-                print(
-                    'Epoch {:03d}'.format(i),
-                    '|| train',
-                    'loss : {:.3f}'.format(train_loss.item()),
-                    'train_time : {:.8f}'.format(train_time),
-                    ', macro_f1 : {:.2f}%'.format(train_macro_f1 * 100),
-                    ', micro_f1 : {:.2f}%'.format(train_micro_f1 * 100),
-                    '|| val',
-                    'loss : {:.3f}'.format(val_loss.item()),
-                    'val_time : {:.8f}'.format(val_time),
-                    ', macro_f1 : {:.2f}%'.format(val_macro_f1 * 100),
-                    ', micro_f1 : {:.2f}%'.format(val_micro_f1 * 100),
-                    '|| test',
-                    ', macro_f1 : {:.2f}%'.format(test_macro_f1 * 100),
-                    ', micro_f1 : {:.2f}%'.format(test_micro_f1 * 100),
-                )
-                # print(
-                #     'Epoch {:03d}'.format(i),
-                #     '|| train',
-                #     'loss : {:.3f}'.format(train_loss.item()),
-                #     'train_time : {:.8f}'.format(train_time),
-                #     ', macro_f1 : {:.2f}%'.format(train_macro_f1 * 100),
-                #     ', micro_f1 : {:.2f}%'.format(train_micro_f1 * 100),
-                #     ', macro_f1_lgt : {:.2f}%'.format(train_macro_f1_lgt * 100),
-                #     ', micro_f1_lgt : {:.2f}%'.format(train_micro_f1_lgt * 100),
-                #     '|| val',
-                #     'loss : {:.3f}'.format(val_loss.item()),
-                #     'val_time : {:.8f}'.format(val_time),
-                #     ', macro_f1 : {:.2f}%'.format(val_macro_f1 * 100),
-                #     ', micro_f1 : {:.2f}%'.format(val_micro_f1 * 100),
-                #     ', macro_f1_lgt : {:.2f}%'.format(val_macro_f1_lgt * 100),
-                #     ', micro_f1_lgt : {:.2f}%'.format(val_micro_f1_lgt * 100),
-                #     '|| test',
-                #     ', macro_f1 : {:.2f}%'.format(test_macro_f1 * 100),
-                #     ', micro_f1 : {:.2f}%'.format(test_micro_f1 * 100),
-                #     ', macro_f1_lgt : {:.2f}%'.format(test_macro_f1_lgt * 100),
-                #     ', micro_f1_lgt : {:.2f}%'.format(test_micro_f1_lgt * 100),
-                # )
-        else:
-            if i % 10 == 0:
-                print(
-                    'Epoch {:03d}'.format(i),
-                    '|| train',
-                    'loss : {:.3f}'.format(train_loss.item()),
-                    'train_time : {:.8f}'.format(train_time),
-                    ', macro_f1 : {:.2f}%'.format(train_macro_f1 * 100),
-                    ', micro_f1 : {:.2f}%'.format(train_micro_f1 * 100),
-                    '|| val',
-                    'loss : {:.3f}'.format(val_loss.item()),
-                    'val_time : {:.8f}'.format(val_time),
-                    ', macro_f1 : {:.2f}%'.format(val_macro_f1 * 100),
-                    ', micro_f1 : {:.2f}%'.format(val_micro_f1 * 100),
-                    '|| test',
-                    ', macro_f1 : {:.2f}%'.format(test_macro_f1 * 100),
-                    ', micro_f1 : {:.2f}%'.format(test_micro_f1 * 100),
-                )
+        
+        test_macro_f1, test_micro_f1, _ = test(model, data, original_A, y, test_mask, deg)
+        
+        if i % 10 == 0:
+            print(
+                'Epoch {:03d}'.format(i),
+                '|| train',
+                'loss : {:.3f}'.format(train_loss.item()),
+                'train_time : {:.8f}'.format(train_time),
+                ', macro_f1 : {:.2f}%'.format(train_macro_f1 * 100),
+                ', micro_f1 : {:.2f}%'.format(train_micro_f1 * 100),
+                '|| val',
+                'loss : {:.3f}'.format(val_loss.item()),
+                'val_time : {:.8f}'.format(val_time),
+                ', macro_f1 : {:.2f}%'.format(val_macro_f1 * 100),
+                ', micro_f1 : {:.2f}%'.format(val_micro_f1 * 100),
+                '|| test',
+                ', macro_f1 : {:.2f}%'.format(test_macro_f1 * 100),
+                ', micro_f1 : {:.2f}%'.format(test_micro_f1 * 100),
+            )
         if i > args.convergence_epoch and args.use_lr_schedule:
             lr_scheduler.step()
 
-        if args.use_pre_train_se:
-            if args.use_early_stopping:
-                if count <= patience:
-                    if max_val_acc >= Val_macro_f1[-1] and max_val_acc_lgt >= Val_macro_f1_lgt[-1]:
-                        if count == 0:
-                            best_macro_f1 = test_macro_f1
-                            best_micro_f1 = test_micro_f1
-                            best_macro_f1_lgt = test_macro_f1_lgt
-                            best_micro_f1_lgt = test_micro_f1_lgt
-                            path = os.path.join(save_path, 'best_network.pth')
-                            torch.save(model.state_dict(), path)  # 这里会存储迄今最优模型的参数
-                        count += 1
-                    else:
-                        count = 0
-                        max_val_acc = Val_macro_f1[-1]
-                        max_val_acc_lgt = Val_macro_f1_lgt[-1]
+        if args.use_early_stopping:
+            if count <= patience:
+                if max_val_acc >= Val_macro_f1[-1]:
+                    if count == 0:
+                        best_macro_f1 = test_macro_f1
+                        best_micro_f1 = test_micro_f1
+                        path = os.path.join(save_path, 'best_network.pth')
+                        torch.save(model.state_dict(), path)  # 这里会存储迄今最优模型的参数
+                    count += 1
                 else:
-                    break
-        else:
-            if args.use_early_stopping:
-                if count <= patience:
-                    if max_val_acc >= Val_macro_f1[-1]:
-                        if count == 0:
-                            best_macro_f1 = test_macro_f1
-                            best_micro_f1 = test_micro_f1
-                            path = os.path.join(save_path, 'best_network.pth')
-                            torch.save(model.state_dict(), path)  # 这里会存储迄今最优模型的参数
-                        count += 1
-                    else:
-                        count = 0
-                        max_val_acc = Val_macro_f1[-1]
-                else:
-                    break
+                    count = 0
+                    max_val_acc = Val_macro_f1[-1]
+            else:
+                break
 
     # _, _, out,_,_ = test(model, data, original_A, y, test_mask, deg)
     # visualize_embedding(outputs=out[test_mask], labels=y[test_mask], name='IMDB')
@@ -444,22 +242,15 @@ def main():
     draw_loss(Train_Loss, len(Train_Loss), args.dataset, 'Train')
     draw_acc(Train_macro_f1, len(Train_macro_f1), args.dataset, 'Train_macro_f1')
     draw_acc(Train_micro_f1, len(Train_micro_f1), args.dataset, 'Train_micro_f1')
-    # if args.use_pre_train_se:
-    #     draw_acc(Train_macro_f1_lgt, len(Train_macro_f1_lgt), args.dataset, 'Train_macro_f1_lgt')
-    #     draw_acc(Train_micro_f1_lgt, len(Train_micro_f1_lgt), args.dataset, 'Train_micro_f1_lgt')
+    
     draw_loss(Val_Loss, len(Val_Loss), args.dataset, 'Val')
     draw_acc(Val_macro_f1, len(Val_macro_f1), args.dataset, 'Val_macro_f1')
     draw_acc(Val_micro_f1, len(Val_micro_f1), args.dataset, 'Val_micro_f1')
-    # if args.use_pre_train_se:
-    #     draw_acc(Val_macro_f1_lgt, len(Val_macro_f1_lgt), args.dataset, 'Val_macro_f1_lgt')
-    #     draw_acc(Val_micro_f1_lgt, len(Val_micro_f1_lgt), args.dataset, 'Val_micro_f1_lgt')
+   
     print('test_macro_f1:{:.2f}'.format(best_macro_f1 * 100))
     print('test_micro_f1:{:.2f}'.format(best_micro_f1 * 100))
-    print(f'训练平均时间{sum_train_time / args.epochs}')
-    print(f'推理平均时间{sum_val_time / args.epochs}')
-    # if args.use_pre_train_se:
-    #     print('test_macro_f1_lgt:{:.2f}'.format(best_macro_f1_lgt * 100))
-    #     print('test_micro_f1_lgt:{:.2f}'.format(best_micro_f1_lgt * 100))
+    print(f'Train time/epoch:{sum_train_time / args.epochs}')
+    print(f'Infernce time/epoch:{sum_val_time / args.epochs}')
 
 
 if __name__ == "__main__":
